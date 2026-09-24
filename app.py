@@ -163,6 +163,7 @@ footer {
 
 .ts-nav .selected {
     color: #171717;
+
     position: relative;
 }
 
@@ -414,6 +415,8 @@ footer {
 }
 
 
+/* Mock header */
+
 .mock-head {
 
     height: 45px;
@@ -441,6 +444,7 @@ footer {
 .dot {
 
     width: 14px;
+
     height: 14px;
 
     border-radius: 50%;
@@ -783,18 +787,6 @@ footer {
 }
 
 
-.upload-limit {
-
-    color: #8b857e;
-
-    font-size: 12px;
-
-    margin-top: 7px;
-
-    margin-bottom: 14px;
-}
-
-
 div[data-testid="stFileUploader"] {
 
     background: #f4f1ec !important;
@@ -805,11 +797,7 @@ div[data-testid="stFileUploader"] {
 }
 
 
-div[data-testid="stFileUploader"] section {
-
-    padding: 10px !important;
-}
-
+/* Text area */
 
 textarea {
 
@@ -817,7 +805,7 @@ textarea {
 }
 
 
-/* Analyze button */
+/* Buttons */
 
 div.stButton > button {
 
@@ -834,88 +822,63 @@ div.stButton > button {
    ============================================================ */
 
 #how-it-works {
-
     scroll-margin-top: 30px;
+}
 
-    margin-top: 100px;
-
-    padding-top: 60px;
-
+.how-section {
+    margin-top: 110px;
+    padding-top: 65px;
     border-top: 1px solid #ddd8d1;
 }
 
-
 .how-title {
-
     font-size: 42px;
-
     letter-spacing: -2px;
-
-    margin-bottom: 10px;
+    margin: 0 0 7px;
 }
-
 
 .how-sub {
-
     color: #716c66;
-
-    margin-bottom: 35px;
+    margin-bottom: 34px;
 }
 
+.how-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
 
 .how-card {
-
     background: #faf9f7;
-
     border: 1px solid #ded9d2;
-
     border-radius: 18px;
-
-    padding: 25px;
-
-    height: 100%;
+    padding: 26px;
+    min-height: 220px;
 }
-
 
 .how-number {
-
-    width: 36px;
-
-    height: 36px;
-
-    border-radius: 50%;
-
-    background: #171717;
-
-    color: white;
-
-    display: flex;
-
-    justify-content: center;
-
-    align-items: center;
-
     font-family: "DM Mono", monospace;
-
-    margin-bottom: 18px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #77716a;
+    margin-bottom: 32px;
 }
-
 
 .how-card h3 {
-
-    font-size: 18px;
-
-    margin-bottom: 8px;
+    font-size: 20px;
+    margin: 0 0 10px;
 }
 
-
 .how-card p {
-
     color: #716c66;
+    line-height: 1.7;
+    margin: 0;
+}
 
-    font-size: 14px;
-
-    line-height: 1.6;
+@media(max-width: 1000px) {
+    .how-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 
@@ -925,21 +888,7 @@ div.stButton > button {
 
 .result {
 
-    margin-top: 60px;
-
-    padding-top: 50px;
-
-    border-top: 1px solid #ddd8d1;
-}
-
-
-.result h2 {
-
-    font-size: 42px;
-
-    letter-spacing: -2px;
-
-    margin-bottom: 25px;
+    margin-top: 40px;
 }
 
 
@@ -1024,10 +973,6 @@ div.stButton > button {
 }
 
 
-/* ============================================================
-   FOOTER
-   ============================================================ */
-
 .footer {
 
     text-align: center;
@@ -1036,7 +981,7 @@ div.stButton > button {
 
     font-size: 12px;
 
-    padding-top: 60px;
+    padding-top: 50px;
 }
 
 
@@ -1111,18 +1056,11 @@ div.stButton > button {
 
         display: none;
     }
-
-    .ts-btn {
-
-        min-width: 100%;
-
-        margin-bottom: 10px;
-    }
 }
 
 </style>
 """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 
@@ -1138,7 +1076,6 @@ def read_file(uploaded_file):
     data = uploaded_file.getvalue()
 
     filename = uploaded_file.name.lower()
-
 
     # TXT
     if filename.endswith(".txt"):
@@ -1217,16 +1154,14 @@ def split_sections(text):
     if not text:
         return []
 
-
     sentences = re.split(
         r"(?<=[.!?])\s+",
         text
     )
 
-
     sections = []
 
-
+    # Three sentences per section
     for i in range(
         0,
         len(sentences),
@@ -1237,19 +1172,17 @@ def split_sections(text):
             sentences[i:i + 3]
         ).strip()
 
-
         if section:
 
             sections.append(
                 section
             )
 
-
     return sections
 
 
 # ============================================================
-# DOCUMENT ANALYSIS
+# SEMANTIC ANALYSIS
 # ============================================================
 
 def analyze_documents(
@@ -1265,7 +1198,6 @@ def analyze_documents(
         document_b
     )
 
-
     if not sections_a or not sections_b:
 
         return None
@@ -1278,7 +1210,6 @@ def analyze_documents(
         ngram_range=(1, 2),
 
         max_features=15000
-
     )
 
 
@@ -1309,7 +1240,6 @@ def analyze_documents(
 
 
     # Overall similarity
-
     full_a = vectorizer.transform(
         [clean_text(document_a)]
     )
@@ -1325,12 +1255,10 @@ def analyze_documents(
             full_a,
             full_b
         )[0][0] * 100
-
     )
 
 
-    # Number of matching sections
-
+    # Matching sections
     match_count = int(
         (
             similarity_matrix >= 0.60
@@ -1338,8 +1266,7 @@ def analyze_documents(
     )
 
 
-    # Risk
-
+    # Risk level
     if overall_similarity >= 75:
 
         risk = "High"
@@ -1353,8 +1280,7 @@ def analyze_documents(
         risk = "Low"
 
 
-    # Strongest matches
-
+    # Find strongest matches
     matches = []
 
     flattened = np.argsort(
@@ -1371,7 +1297,6 @@ def analyze_documents(
             index,
             similarity_matrix.shape
         )
-
 
         score = (
             similarity_matrix[i][j]
@@ -1494,7 +1419,7 @@ st.markdown(
 
 
 # ============================================================
-# HERO
+# HERO SECTION
 # ============================================================
 
 st.markdown(
@@ -1754,7 +1679,7 @@ st.markdown(
 
 
 # ============================================================
-# ANALYZER
+# ANALYZER SECTION
 # ============================================================
 
 st.markdown(
@@ -1782,7 +1707,7 @@ st.markdown(
 
 
 # ============================================================
-# DOCUMENT UPLOADERS
+# DOCUMENT UPLOAD
 # ============================================================
 
 column_a, column_b = st.columns(
@@ -1791,9 +1716,7 @@ column_a, column_b = st.columns(
 )
 
 
-# ------------------------------------------------------------
 # DOCUMENT A
-# ------------------------------------------------------------
 
 with column_a:
 
@@ -1826,17 +1749,6 @@ with column_a:
         ],
 
         key="document_a"
-
-    )
-
-
-    st.markdown(
-        """
-        <div class="upload-limit">
-            200MB per file • PDF, DOCX, TXT
-        </div>
-        """,
-        unsafe_allow_html=True
     )
 
 
@@ -1852,9 +1764,7 @@ with column_a:
     )
 
 
-# ------------------------------------------------------------
 # DOCUMENT B
-# ------------------------------------------------------------
 
 with column_b:
 
@@ -1887,17 +1797,6 @@ with column_b:
         ],
 
         key="document_b"
-
-    )
-
-
-    st.markdown(
-        """
-        <div class="upload-limit">
-            200MB per file • PDF, DOCX, TXT
-        </div>
-        """,
-        unsafe_allow_html=True
     )
 
 
@@ -2027,9 +1926,7 @@ if "analysis_result" in st.session_state:
     )
 
 
-    # --------------------------------------------------------
-    # METRICS
-    # --------------------------------------------------------
+    # Metrics
 
     metric1, metric2, metric3 = st.columns(3)
 
@@ -2094,9 +1991,9 @@ if "analysis_result" in st.session_state:
         )
 
 
-    # --------------------------------------------------------
-    # SEMANTIC MATCHES
-    # --------------------------------------------------------
+    # ========================================================
+    # MATCHES
+    # ========================================================
 
     st.markdown(
         "### Semantic Matches"
@@ -2110,11 +2007,9 @@ if "analysis_result" in st.session_state:
 
         score = match["score"]
 
-
         text_from_a = html.escape(
             match["a_text"]
         )
-
 
         text_from_b = html.escape(
             match["b_text"]
@@ -2137,7 +2032,6 @@ if "analysis_result" in st.session_state:
                         Section #{number}
                         Semantic Match
                     </strong>
-
 
                     <span class="overlap">
                         {score:.1f}% Overlap
@@ -2181,9 +2075,9 @@ if "analysis_result" in st.session_state:
         )
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # SIMILARITY MATRIX
-    # --------------------------------------------------------
+    # ========================================================
 
     st.markdown(
         "### Similarity Matrix"
@@ -2204,13 +2098,23 @@ if "analysis_result" in st.session_state:
     )
 
 
+    st.caption(
+
+        "This version uses TF-IDF + cosine similarity "
+        "as a lightweight local baseline. For stronger "
+        "semantic matching, the engine can be upgraded "
+        "to sentence embeddings."
+
+    )
+
+
 # ============================================================
 # HOW IT WORKS
 # ============================================================
 
 st.markdown(
     """
-<div id="how-it-works">
+<section class="how-section" id="how-it-works">
 
     <h2 class="how-title">
         How It Works
@@ -2220,19 +2124,8 @@ st.markdown(
         TextShield analyzes your documents in three simple stages.
     </div>
 
-</div>
-""",
-    unsafe_allow_html=True
-)
+    <div class="how-grid">
 
-
-how1, how2, how3 = st.columns(3)
-
-
-with how1:
-
-    st.markdown(
-        """
         <div class="how-card">
 
             <div class="how-number">
@@ -2250,15 +2143,8 @@ with how1:
             </p>
 
         </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 
-with how2:
-
-    st.markdown(
-        """
         <div class="how-card">
 
             <div class="how-number">
@@ -2276,15 +2162,8 @@ with how2:
             </p>
 
         </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 
-with how3:
-
-    st.markdown(
-        """
         <div class="how-card">
 
             <div class="how-number">
@@ -2302,9 +2181,13 @@ with how3:
             </p>
 
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+
+    </div>
+
+</section>
+""",
+    unsafe_allow_html=True
+)
 
 
 # ============================================================
