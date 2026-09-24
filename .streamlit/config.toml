@@ -1,3 +1,7 @@
+[server]
+maxUploadSize = 200
+headless = true
+
 [theme]
 base = "light"
 primaryColor = "#171717"
@@ -5,6 +9,3 @@ backgroundColor = "#f6f2ec"
 secondaryBackgroundColor = "#faf9f7"
 textColor = "#181818"
 font = "sans serif"
-
-[server]
-headless = true
