@@ -1,2206 +1,1146 @@
+
 import io
 import re
 import html
 import numpy as np
 import streamlit as st
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
-try:
-    import PyPDF2
-except ImportError:
-    PyPDF2 = None
-
-try:
-    from docx import Document
-except ImportError:
-    Document = None
-
-
-# ============================================================
-# PAGE CONFIG
-# ============================================================
+from PyPDF2 import PdfReader
+from docx import Document
 
 st.set_page_config(
-    page_title="TextShield — AI Semantic Engine",
-    page_icon="🛡️",
+    page_title="TextShield",
+    page_icon="♢",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-
 # ============================================================
-# CUSTOM CSS
+# EXACT TEXTSHIELD UI — independently recreated in Streamlit
 # ============================================================
 
-st.markdown(
-    """
+st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@500;600&display=swap');
-
-
-/* ============================================================
-   GLOBAL
-   ============================================================ */
-
-html, body, [class*="css"] {
-    font-family: "DM Sans", sans-serif !important;
+:root {
+    --cream:#f6f2ec;
+    --paper:#fbfaf7;
+    --white:#ffffff;
+    --ink:#151515;
+    --muted:#77736d;
+    --line:#ded9d0;
+    --soft:#ebe6de;
+    --green:#d9eadb;
+    --green-ink:#31583a;
 }
 
-.stApp {
-    background: #f6f2ec;
-    color: #181818;
+* { box-sizing:border-box; }
+
+html { scroll-behavior:smooth; }
+
+body, .stApp {
+    background:var(--cream) !important;
+    color:var(--ink) !important;
+    font-family:'DM Sans',sans-serif !important;
 }
+
+.stApp > header { display:none !important; }
 
 .block-container {
-    max-width: 1410px !important;
-    padding: 0 0 80px !important;
+    max-width:1320px !important;
+    padding:0 42px 60px !important;
 }
 
-header[data-testid="stHeader"] {
-    background: transparent !important;
-}
+[data-testid="stSidebar"] { display:none !important; }
+[data-testid="collapsedControl"] { display:none !important; }
 
-section[data-testid="stSidebar"] {
-    display: none;
-}
+h1,h2,h3,p { margin-top:0; }
 
-[data-testid="stToolbar"] {
-    display: none;
-}
-
-[data-testid="stDecoration"] {
-    display: none;
-}
-
-footer {
-    visibility: hidden;
-}
-
-
-/* ============================================================
-   HEADER
-   ============================================================ */
+/* ---------------- HEADER ---------------- */
 
 .ts-header {
-    height: 84px;
-    border-bottom: 1px solid #ddd8d1;
-
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-
-    align-items: center;
+    height:92px;
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:center;
+    border-bottom:1px solid var(--line);
 }
-
 
 .ts-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display:flex;
+    align-items:center;
+    gap:11px;
+    min-width:0;
 }
-
 
 .ts-shield {
-    width: 44px;
-    height: 44px;
-
-    background: #171717;
-    color: white;
-
-    border-radius: 14px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 22px;
-
-    box-shadow: 0 4px 10px rgba(0,0,0,.10);
+    width:31px;
+    height:31px;
+    border:2px solid var(--ink);
+    border-radius:9px 9px 13px 13px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    line-height:1;
+    transform:rotate(0deg);
 }
-
 
 .ts-brand-name {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: -1px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:-.5px;
 }
-
 
 .ts-pill {
-    background: #e9e5de;
-
-    border: 1px solid #dfdad3;
-
-    color: #716c66;
-
-    border-radius: 20px;
-
-    padding: 6px 11px;
-
-    font-family: "DM Mono", monospace;
-
-    font-size: 10px;
+    margin-left:3px;
+    padding:6px 9px;
+    border:1px solid #c9c3ba;
+    border-radius:999px;
+    font-size:8px;
+    font-weight:700;
+    letter-spacing:1.1px;
+    color:#68635c;
+    white-space:nowrap;
 }
-
-
-/* Navigation */
 
 .ts-nav {
-    display: flex;
-    align-items: center;
-
-    gap: 37px;
-
-    height: 100%;
-
-    color: #716c66;
-
-    font-size: 15px;
+    display:flex;
+    align-items:center;
+    gap:37px;
+    font-size:13px;
+    color:#625e58;
+    white-space:nowrap;
 }
 
-
-.ts-nav .selected {
-    color: #171717;
-
-    position: relative;
+.ts-nav-item {
+    position:relative;
+    cursor:default;
 }
 
-
-.ts-nav .selected:after {
-    content: "";
-
-    position: absolute;
-
-    left: 0;
-    right: 0;
-
-    bottom: -31px;
-
-    height: 2px;
-
-    background: #171717;
+.ts-nav-item.selected {
+    color:var(--ink);
+    font-weight:600;
 }
 
-
-/* Get Started */
+.ts-nav-item.selected:after {
+    content:'';
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:-11px;
+    height:2px;
+    background:var(--ink);
+}
 
 .ts-get {
-    justify-self: end;
-
-    background: #171717;
-
-    color: white !important;
-
-    text-decoration: none !important;
-
-    padding: 12px 20px;
-
-    border-radius: 15px;
-
-    font-size: 14px;
-
-    font-weight: 600;
-
-    box-shadow: 0 4px 9px rgba(0,0,0,.10);
+    justify-self:end;
+    text-decoration:none !important;
+    color:#fff !important;
+    background:var(--ink);
+    padding:12px 17px;
+    border-radius:6px;
+    font-size:12px;
+    font-weight:600;
 }
 
-.ts-get span {
-    font-size: 17px;
-    margin-left: 8px;
-}
+.ts-get span { margin-left:7px; font-size:15px; }
 
-
-/* ============================================================
-   HERO
-   ============================================================ */
+/* ---------------- HERO ---------------- */
 
 .hero-wrap {
-
-    display: grid;
-
-    grid-template-columns: 1.03fr .83fr;
-
-    gap: 70px;
-
-    padding-top: 92px;
-
-    align-items: center;
+    min-height:650px;
+    display:grid;
+    grid-template-columns:1.02fr .98fr;
+    gap:62px;
+    align-items:center;
+    padding:72px 0 78px;
 }
-
-
-/* Eyebrow */
 
 .eyebrow {
-
-    display: inline-flex;
-
-    align-items: center;
-
-    background: #ebe7e1;
-
-    border: 1px solid #dfd9d2;
-
-    border-radius: 22px;
-
-    padding: 8px 14px;
-
-    font-size: 13px;
-
-    font-weight: 500;
-
-    margin-bottom: 32px;
+    display:inline-flex;
+    align-items:center;
+    font-size:10px;
+    letter-spacing:1.55px;
+    font-weight:700;
+    color:#716c65;
+    margin-bottom:25px;
 }
-
-
-/* Main heading */
 
 .hero-title {
-
-    margin: 0;
-
-    font-size: 68px;
-
-    line-height: .98;
-
-    letter-spacing: -4px;
-
-    font-weight: 700;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:66px;
+    line-height:.98;
+    letter-spacing:-3.5px;
+    font-weight:600;
+    max-width:650px;
+    margin-bottom:28px;
 }
-
 
 .hero-title em {
-
-    font-family: "Playfair Display", serif;
-
-    color: #77716b;
-
-    font-weight: 500;
-
-    letter-spacing: -3px;
-
-    white-space: nowrap;
+    font-style:normal;
+    position:relative;
 }
 
-
-/* Description */
+.hero-title em:after {
+    content:'';
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:-5px;
+    height:4px;
+    background:#c7c0b7;
+    transform:rotate(-1deg);
+    border-radius:5px;
+}
 
 .hero-copy {
-
-    margin: 32px 0 36px;
-
-    max-width: 710px;
-
-    color: #6d6862;
-
-    font-size: 19px;
-
-    line-height: 1.65;
+    max-width:555px;
+    color:#706b64;
+    font-size:15px;
+    line-height:1.7;
+    margin-bottom:30px;
 }
-
-
-/* Buttons */
 
 .ts-btn {
-
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    min-width: 255px;
-
-    padding: 17px 27px;
-
-    border-radius: 15px;
-
-    text-decoration: none !important;
-
-    font-size: 16px;
-
-    font-weight: 600;
-
-    margin-right: 12px;
+    display:inline-block;
+    text-decoration:none !important;
+    padding:14px 19px;
+    border-radius:6px;
+    font-size:12px;
+    font-weight:600;
+    margin-right:8px;
 }
-
 
 .ts-btn-black {
-
-    background: #171717;
-
-    color: white !important;
-
-    box-shadow: 0 8px 15px rgba(0,0,0,.12);
+    background:var(--ink);
+    color:white !important;
 }
-
 
 .ts-btn-light {
-
-    background: #faf9f7;
-
-    color: #171717 !important;
-
-    border: 1px solid #ddd8d1;
+    background:#fff;
+    color:var(--ink) !important;
+    border:1px solid #d8d2c9;
 }
-
-
-/* Features */
 
 .hero-features {
-
-    border-top: 1px solid #ddd8d1;
-
-    margin-top: 28px;
-
-    padding-top: 25px;
-
-    display: flex;
-
-    gap: 70px;
-
-    color: #6e6963;
-
-    font-size: 14px;
+    display:flex;
+    gap:23px;
+    margin-top:29px;
+    flex-wrap:wrap;
 }
-
 
 .feature {
-
-    display: flex;
-
-    align-items: center;
-
-    white-space: nowrap;
+    font-size:10px;
+    color:#6e6962;
+    display:flex;
+    align-items:center;
+    gap:7px;
 }
-
 
 .check {
-
-    width: 18px;
-    height: 18px;
-
-    border: 1.5px solid #242424;
-
-    border-radius: 50%;
-
-    margin-right: 9px;
-
-    display: inline-flex;
-
-    justify-content: center;
-
-    align-items: center;
-
-    font-size: 11px;
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    background:#dfddd7;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:9px;
+    color:#4f4b45;
 }
 
-
-/* ============================================================
-   RIGHT MOCKUP
-   ============================================================ */
+/* ---------------- MOCKUP ---------------- */
 
 .mock {
-
-    background: #fbfaf8;
-
-    border: 1px solid #e1dcd5;
-
-    border-radius: 23px;
-
-    padding: 30px;
-
-    box-shadow: 0 12px 30px rgba(40,35,28,.055);
+    background:#fff;
+    border:1px solid #d7d1c8;
+    border-radius:13px;
+    box-shadow:0 22px 50px rgba(33,29,24,.09);
+    overflow:hidden;
+    transform:rotate(.15deg);
 }
-
-
-/* Mock header */
 
 .mock-head {
-
-    height: 45px;
-
-    border-bottom: 1px solid #dfdad3;
-
-    display: flex;
-
-    align-items: flex-start;
-
-    justify-content: space-between;
+    height:51px;
+    display:grid;
+    grid-template-columns:90px 1fr auto;
+    align-items:center;
+    border-bottom:1px solid #e5e0d8;
+    padding:0 18px;
 }
 
-
-.mock-dots {
-
-    display: flex;
-
-    gap: 8px;
-
-    padding-top: 9px;
-}
-
+.mock-dots { display:flex; gap:6px; }
 
 .dot {
-
-    width: 14px;
-
-    height: 14px;
-
-    border-radius: 50%;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    display:block;
 }
 
-
-.dot.r {
-    background: #ff6173;
-}
-
-.dot.y {
-    background: #ffbd2e;
-}
-
-.dot.g {
-    background: #00c98b;
-}
-
+.dot.r { background:#e37d72; }
+.dot.y { background:#e1bd62; }
+.dot.g { background:#77b77e; }
 
 .mock-file {
-
-    font-family: "DM Mono", monospace;
-
-    color: #716b65;
-
-    font-size: 12px;
-
-    padding-top: 9px;
+    font-size:10px;
+    color:#77716a;
 }
-
 
 .mock-live {
-
-    background: #171717;
-
-    color: white;
-
-    border-radius: 9px;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    padding: 7px 11px;
+    font-size:8px;
+    letter-spacing:1px;
+    font-weight:700;
+    color:#6d6861;
 }
-
-
-/* Documents */
 
 .mock-doc {
-
-    margin-top: 19px;
-
-    border: 1px solid #e0dbd4;
-
-    background: #f1eee9;
-
-    border-radius: 16px;
-
-    min-height: 72px;
-
-    padding: 17px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
+    margin:15px 17px 0;
+    padding:15px;
+    background:#faf9f7;
+    border:1px solid #e4dfd7;
+    border-radius:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
-
 
 .mock-doc-left {
-
-    display: flex;
-
-    gap: 12px;
-
-    align-items: center;
+    display:flex;
+    align-items:center;
+    gap:11px;
 }
-
 
 .doc-icon {
-
-    width: 20px;
-
-    height: 25px;
-
-    border: 2px solid #6d6862;
-
-    border-radius: 4px;
-
-    position: relative;
+    width:28px;
+    height:34px;
+    border:1.5px solid #a7a199;
+    border-radius:3px;
+    background:#fff;
+    position:relative;
 }
-
 
 .doc-icon:after {
-
-    content: "";
-
-    position: absolute;
-
-    left: 4px;
-
-    right: 4px;
-
-    top: 8px;
-
-    border-top: 1px solid #aaa39b;
-
-    box-shadow: 0 5px 0 #aaa39b;
+    content:'';
+    position:absolute;
+    width:8px;
+    height:8px;
+    right:-1px;
+    top:-1px;
+    border-left:1.5px solid #a7a199;
+    border-bottom:1.5px solid #a7a199;
+    background:#fff;
 }
-
 
 .mock-doc-title {
-
-    font-size: 14px;
-
-    font-weight: 700;
+    font-size:11px;
+    font-weight:600;
+    margin-bottom:4px;
 }
-
 
 .mock-meta {
-
-    color: #8b857e;
-
-    font-size: 11px;
-
-    margin-top: 4px;
+    font-size:8.5px;
+    color:#8a847c;
 }
-
 
 .mock-label {
-
-    font-family: "DM Mono", monospace;
-
-    font-size: 11px;
+    font-size:8px;
+    padding:5px 7px;
+    background:#e9e5df;
+    border-radius:4px;
+    color:#6b665f;
 }
-
-
-/* Score */
 
 .mock-score {
-
-    margin-top: 19px;
-
-    background: #171717;
-
-    color: white;
-
-    border-radius: 17px;
-
-    height: 101px;
-
-    display: grid;
-
-    grid-template-columns: 1fr 1fr 1fr;
-
-    align-items: center;
-
-    text-align: center;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    margin:16px 17px;
+    border:1px solid #e3ded6;
+    border-radius:8px;
+    overflow:hidden;
 }
 
-
-.score-cell + .score-cell {
-
-    border-left: 1px solid #353535;
+.score-cell {
+    min-height:90px;
+    padding:15px 10px;
+    text-align:center;
+    border-right:1px solid #e3ded6;
 }
 
+.score-cell:last-child { border-right:0; }
 
 .score-number {
-
-    font-size: 25px;
-
-    font-weight: 700;
-
-    line-height: 1;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:29px;
+    font-weight:600;
+    letter-spacing:-1px;
 }
-
 
 .score-label {
-
-    color: #b7b2ac;
-
-    font-size: 10px;
-
-    margin-top: 8px;
+    margin-top:6px;
+    font-size:7.5px;
+    letter-spacing:1px;
+    color:#88827a;
+    font-weight:700;
 }
-
 
 .risk-badge {
-
-    display: inline-block;
-
-    background: #541c2a;
-
-    color: #ffb1bd;
-
-    border-radius: 8px;
-
-    padding: 6px 10px;
-
-    font-size: 10px;
+    display:inline-block;
+    margin-top:2px;
+    padding:8px 10px;
+    border-radius:999px;
+    background:#f0dfdf;
+    color:#714a4a;
+    font-size:10px;
+    font-weight:600;
 }
-
-
-/* Match */
 
 .mock-match {
-
-    margin-top: 20px;
-
-    border: 1px solid #dfdad3;
-
-    border-radius: 15px;
-
-    padding: 16px;
+    margin:0 17px 17px;
+    padding:15px;
+    background:#faf9f7;
+    border:1px solid #e3ded6;
+    border-radius:8px;
 }
-
 
 .match-top {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    font-size: 12px;
-
-    font-weight: 600;
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    font-size:9px;
+    font-weight:600;
 }
 
-
-.overlap {
-
-    color: #f05c6d;
-
-    border: 1px solid #ffb6c0;
-
-    background: #fff4f5;
-
-    padding: 5px 8px;
-
-    border-radius: 7px;
-
-    font-size: 11px;
-}
-
+.overlap { color:#78716a; }
 
 .mock-quote {
-
-    margin-top: 12px;
-
-    background: #f2eee8;
-
-    border: 1px solid #e3ddd5;
-
-    border-radius: 6px;
-
-    padding: 10px;
-
-    color: #655f59;
-
-    font-family: "DM Mono", monospace;
-
-    font-size: 10px;
-
-    line-height: 1.6;
+    margin-top:11px;
+    padding:12px;
+    background:#f0ede7;
+    border-left:3px solid #9b958d;
+    color:#69645d;
+    font-size:10px;
+    line-height:1.55;
+    font-style:italic;
 }
 
+/* ---------------- ANALYZER ---------------- */
 
-/* ============================================================
-   ANALYZER
-   ============================================================ */
-
-#analyzer {
-    scroll-margin-top: 30px;
+.analyzer-section {
+    scroll-margin-top:25px;
+    padding:86px 0 95px;
 }
 
-
-.analyzer {
-
-    margin-top: 105px;
-
-    padding-top: 55px;
-
-    border-top: 1px solid #ddd8d1;
+.analyzer-title {
+    text-align:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:43px;
+    letter-spacing:-1.8px;
+    margin-bottom:10px;
 }
-
-
-.analyzer h2 {
-
-    font-size: 42px;
-
-    letter-spacing: -2px;
-
-    margin: 0 0 7px;
-}
-
 
 .analyzer-sub {
-
-    color: #716c66;
-
-    margin-bottom: 28px;
+    text-align:center;
+    color:#77716a;
+    font-size:14px;
+    margin-bottom:43px;
 }
-
-
-/* Upload cards */
 
 .upload-card {
-
-    background: #faf9f7;
-
-    border: 1px solid #dfdad3;
-
-    border-radius: 18px;
-
-    padding: 24px;
+    background:#fff;
+    border:1px solid #ddd7ce;
+    border-radius:11px;
+    padding:25px;
+    min-height:300px;
 }
-
 
 .upload-title {
-
-    font-size: 18px;
-
-    font-weight: 700;
-
-    margin-bottom: 4px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;
+    font-weight:600;
 }
-
 
 .upload-sub {
-
-    color: #7b756f;
-
-    font-size: 13px;
-
-    margin-bottom: 15px;
+    color:#88827a;
+    font-size:11px;
+    margin-top:4px;
+    margin-bottom:22px;
 }
 
+.upload-help {
+    font-size:10px;
+    color:#88827a;
+    margin-top:-8px;
+    margin-bottom:16px;
+}
+
+.paste-label {
+    font-size:11px;
+    font-weight:600;
+    margin:18px 0 7px;
+}
 
 div[data-testid="stFileUploader"] {
-
-    background: #f4f1ec !important;
-
-    border: 1px dashed #cfc8bf !important;
-
-    border-radius: 13px !important;
+    border:1px dashed #cfc8bf !important;
+    border-radius:8px !important;
+    background:#faf9f7 !important;
+    padding:5px !important;
 }
 
+div[data-testid="stFileUploader"] section {
+    border:0 !important;
+    padding:10px !important;
+}
 
-/* Text area */
+div[data-testid="stFileUploader"] button {
+    font-size:11px !important;
+}
 
 textarea {
-
-    background: #faf9f7 !important;
+    border-radius:7px !important;
+    border:1px solid #d8d2ca !important;
+    background:#fff !important;
+    font-size:12px !important;
 }
 
-
-/* Buttons */
-
-div.stButton > button {
-
-    border-radius: 14px !important;
-
-    min-height: 50px !important;
-
-    font-weight: 600 !important;
+.analyze-row {
+    text-align:center;
+    margin:35px 0 0;
 }
 
-
-/* ============================================================
-   HOW IT WORKS
-   ============================================================ */
-
-#how-it-works {
-    scroll-margin-top: 30px;
+.analyze-row button {
+    min-width:190px !important;
 }
+
+/* ---------------- RESULTS ---------------- */
+
+.results-wrap {
+    margin-top:55px;
+    padding:28px;
+    background:#fff;
+    border:1px solid #ddd7ce;
+    border-radius:11px;
+}
+
+.results-title {
+    font-family:'Space Grotesk',sans-serif;
+    font-size:26px;
+    margin-bottom:22px;
+}
+
+.result-card {
+    background:#faf9f7;
+    border:1px solid #e2ddd5;
+    border-radius:8px;
+    padding:18px;
+    text-align:center;
+}
+
+.result-number {
+    font-family:'Space Grotesk',sans-serif;
+    font-size:32px;
+    font-weight:600;
+}
+
+.result-label {
+    font-size:8px;
+    letter-spacing:1px;
+    color:#817b73;
+    margin-top:4px;
+}
+
+.match-item {
+    padding:16px 0;
+    border-bottom:1px solid #e4dfd7;
+}
+
+.match-item:last-child { border-bottom:0; }
+
+.match-name {
+    font-size:12px;
+    font-weight:600;
+}
+
+.match-score {
+    font-size:10px;
+    color:#77716a;
+    margin-top:4px;
+}
+
+.match-text {
+    margin-top:9px;
+    font-size:11px;
+    color:#68635c;
+    line-height:1.55;
+}
+
+/* ---------------- HOW IT WORKS ---------------- */
 
 .how-section {
-    margin-top: 110px;
-    padding-top: 65px;
-    border-top: 1px solid #ddd8d1;
+    scroll-margin-top:25px;
+    padding:80px 0 95px;
+    border-top:1px solid var(--line);
 }
 
 .how-title {
-    font-size: 42px;
-    letter-spacing: -2px;
-    margin: 0 0 7px;
+    text-align:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:43px;
+    letter-spacing:-1.8px;
+    margin-bottom:10px;
 }
 
 .how-sub {
-    color: #716c66;
-    margin-bottom: 34px;
+    text-align:center;
+    color:#77716a;
+    font-size:14px;
+    margin-bottom:45px;
 }
 
 .how-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
 }
 
 .how-card {
-    background: #faf9f7;
-    border: 1px solid #ded9d2;
-    border-radius: 18px;
-    padding: 26px;
-    min-height: 220px;
+    background:#fff;
+    border:1px solid #ddd7ce;
+    border-radius:10px;
+    padding:27px;
+    min-height:245px;
 }
 
 .how-number {
-    font-family: "DM Mono", monospace;
-    font-size: 12px;
-    letter-spacing: 1px;
-    color: #77716a;
-    margin-bottom: 32px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:35px;
+    font-weight:600;
+    letter-spacing:-1px;
+    color:#a19a91;
+    margin-bottom:35px;
 }
 
 .how-card h3 {
-    font-size: 20px;
-    margin: 0 0 10px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;
+    margin-bottom:11px;
 }
 
 .how-card p {
-    color: #716c66;
-    line-height: 1.7;
-    margin: 0;
+    color:#77716a;
+    font-size:12px;
+    line-height:1.7;
 }
 
-@media(max-width: 1000px) {
-    .how-grid {
-        grid-template-columns: 1fr;
-    }
+/* ---------------- FOOTER ---------------- */
+
+.ts-footer {
+    border-top:1px solid var(--line);
+    padding:28px 0 5px;
+    color:#817b73;
+    font-size:10px;
 }
 
-
-/* ============================================================
-   RESULTS
-   ============================================================ */
-
-.result {
-
-    margin-top: 40px;
+/* Streamlit buttons */
+.stButton > button {
+    background:#151515 !important;
+    color:#fff !important;
+    border:0 !important;
+    border-radius:6px !important;
+    font-weight:600 !important;
+    font-size:12px !important;
+    padding:11px 22px !important;
 }
 
-
-.result-card {
-
-    background: #faf9f7;
-
-    border: 1px solid #ded9d2;
-
-    border-radius: 18px;
-
-    padding: 23px;
+.stButton > button:hover {
+    background:#2b2b2b !important;
+    color:#fff !important;
 }
 
-
-.metric {
-
-    font-size: 39px;
-
-    font-weight: 700;
-
-    letter-spacing: -2px;
+@media (max-width: 1050px) {
+    .ts-header { grid-template-columns:1fr auto; }
+    .ts-nav { display:none; }
+    .hero-wrap { grid-template-columns:1fr; }
+    .hero-title { font-size:56px; }
 }
 
-
-.muted {
-
-    color: #77716a;
-
-    font-size: 12px;
-
-    letter-spacing: .3px;
+@media (max-width: 700px) {
+    .block-container { padding:0 18px 40px !important; }
+    .ts-header { height:75px; }
+    .ts-pill { display:none; }
+    .hero-wrap { padding:55px 0; }
+    .hero-title { font-size:43px; letter-spacing:-2.3px; }
+    .how-grid { grid-template-columns:1fr; }
+    .mock-score { grid-template-columns:1fr; }
+    .score-cell { border-right:0; border-bottom:1px solid #e3ded6; }
+    .score-cell:last-child { border-bottom:0; }
 }
-
-
-.high {
-    color: #bd3345;
-}
-
-.medium {
-    color: #a66b00;
-}
-
-.low {
-    color: #28744e;
-}
-
-
-.match-card {
-
-    background: #faf9f7;
-
-    border: 1px solid #ded9d2;
-
-    border-radius: 16px;
-
-    padding: 18px;
-
-    margin: 12px 0;
-}
-
-
-.match-card .quote {
-
-    background: #f1eee9;
-
-    border: 1px solid #e1dcd4;
-
-    border-radius: 8px;
-
-    padding: 12px;
-
-    margin-top: 7px;
-
-    color: #625d57;
-
-    font-family: "DM Mono", monospace;
-
-    font-size: 11px;
-
-    line-height: 1.6;
-}
-
-
-.footer {
-
-    text-align: center;
-
-    color: #89827b;
-
-    font-size: 12px;
-
-    padding-top: 50px;
-}
-
-
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-
-@media(max-width: 1000px) {
-
-    .ts-header {
-
-        grid-template-columns: 1fr auto;
-    }
-
-    .ts-nav {
-        display: none;
-    }
-
-    .hero-wrap {
-
-        grid-template-columns: 1fr;
-
-        gap: 45px;
-
-        padding-top: 55px;
-    }
-
-    .hero-title {
-
-        font-size: 52px;
-
-        letter-spacing: -2.7px;
-    }
-
-    .hero-features {
-
-        gap: 25px;
-
-        flex-wrap: wrap;
-    }
-}
-
-
-@media(max-width: 600px) {
-
-    .hero-title {
-
-        font-size: 42px;
-    }
-
-    .hero-title em {
-
-        white-space: normal;
-    }
-
-    .hero-copy {
-
-        font-size: 17px;
-    }
-
-    .mock {
-
-        padding: 20px;
-    }
-
-    .ts-brand-name {
-
-        font-size: 21px;
-    }
-
-    .ts-pill {
-
-        display: none;
-    }
-}
-
 </style>
-""",
-    unsafe_allow_html=True,
-)
-
-
-# ============================================================
-# FILE READING
-# ============================================================
-
-def read_file(uploaded_file):
-
-    if uploaded_file is None:
-        return ""
-
-    data = uploaded_file.getvalue()
-
-    filename = uploaded_file.name.lower()
-
-    # TXT
-    if filename.endswith(".txt"):
-
-        return data.decode(
-            "utf-8",
-            errors="ignore"
-        )
-
-
-    # PDF
-    if filename.endswith(".pdf"):
-
-        if PyPDF2 is None:
-            return ""
-
-        reader = PyPDF2.PdfReader(
-            io.BytesIO(data)
-        )
-
-        pages = []
-
-        for page in reader.pages:
-
-            text = page.extract_text()
-
-            if text:
-                pages.append(text)
-
-        return "\n".join(pages)
-
-
-    # DOCX
-    if filename.endswith(".docx"):
-
-        if Document is None:
-            return ""
-
-        document = Document(
-            io.BytesIO(data)
-        )
-
-        paragraphs = []
-
-        for paragraph in document.paragraphs:
-
-            if paragraph.text.strip():
-
-                paragraphs.append(
-                    paragraph.text
-                )
-
-        return "\n".join(paragraphs)
-
-
-    return ""
-
-
-# ============================================================
-# TEXT PROCESSING
-# ============================================================
-
-def clean_text(text):
-
-    return re.sub(
-        r"\s+",
-        " ",
-        text or ""
-    ).strip()
-
-
-def split_sections(text):
-
-    text = clean_text(text)
-
-    if not text:
-        return []
-
-    sentences = re.split(
-        r"(?<=[.!?])\s+",
-        text
-    )
-
-    sections = []
-
-    # Three sentences per section
-    for i in range(
-        0,
-        len(sentences),
-        3
-    ):
-
-        section = " ".join(
-            sentences[i:i + 3]
-        ).strip()
-
-        if section:
-
-            sections.append(
-                section
-            )
-
-    return sections
-
-
-# ============================================================
-# SEMANTIC ANALYSIS
-# ============================================================
-
-def analyze_documents(
-    document_a,
-    document_b
-):
-
-    sections_a = split_sections(
-        document_a
-    )
-
-    sections_b = split_sections(
-        document_b
-    )
-
-    if not sections_a or not sections_b:
-
-        return None
-
-
-    vectorizer = TfidfVectorizer(
-
-        stop_words="english",
-
-        ngram_range=(1, 2),
-
-        max_features=15000
-    )
-
-
-    combined = (
-        sections_a +
-        sections_b
-    )
-
-
-    matrix = vectorizer.fit_transform(
-        combined
-    )
-
-
-    vectors_a = matrix[
-        :len(sections_a)
-    ]
-
-    vectors_b = matrix[
-        len(sections_a):
-    ]
-
-
-    similarity_matrix = cosine_similarity(
-        vectors_a,
-        vectors_b
-    )
-
-
-    # Overall similarity
-    full_a = vectorizer.transform(
-        [clean_text(document_a)]
-    )
-
-    full_b = vectorizer.transform(
-        [clean_text(document_b)]
-    )
-
-
-    overall_similarity = float(
-
-        cosine_similarity(
-            full_a,
-            full_b
-        )[0][0] * 100
-    )
-
-
-    # Matching sections
-    match_count = int(
-        (
-            similarity_matrix >= 0.60
-        ).sum()
-    )
-
-
-    # Risk level
-    if overall_similarity >= 75:
-
-        risk = "High"
-
-    elif overall_similarity >= 45:
-
-        risk = "Medium"
-
-    else:
-
-        risk = "Low"
-
-
-    # Find strongest matches
-    matches = []
-
-    flattened = np.argsort(
-        similarity_matrix.ravel()
-    )[::-1]
-
-
-    used = set()
-
-
-    for index in flattened:
-
-        i, j = np.unravel_index(
-            index,
-            similarity_matrix.shape
-        )
-
-        score = (
-            similarity_matrix[i][j]
-            * 100
-        )
-
-
-        if score < 40:
-
-            break
-
-
-        if (i, j) in used:
-
-            continue
-
-
-        used.add(
-            (i, j)
-        )
-
-
-        matches.append({
-
-            "a_index": i,
-
-            "b_index": j,
-
-            "score": score,
-
-            "a_text": sections_a[i],
-
-            "b_text": sections_b[j]
-
-        })
-
-
-        if len(matches) >= 8:
-
-            break
-
-
-    return {
-
-        "overall": overall_similarity,
-
-        "risk": risk,
-
-        "matches": match_count,
-
-        "sections_a": sections_a,
-
-        "sections_b": sections_b,
-
-        "top_matches": matches,
-
-        "matrix": similarity_matrix
-
-    }
-
+""", unsafe_allow_html=True)
 
 # ============================================================
 # HEADER
 # ============================================================
 
-st.markdown(
-    """
+st.markdown("""
 <div class="ts-header">
-
     <div class="ts-brand">
-
-        <div class="ts-shield">
-            ♢
-        </div>
-
-        <div class="ts-brand-name">
-            TextShield
-        </div>
-
-        <div class="ts-pill">
-            AI SEMANTIC ENGINE
-        </div>
-
+        <div class="ts-shield">♢</div>
+        <div class="ts-brand-name">TextShield</div>
+        <div class="ts-pill">AI SEMANTIC ENGINE</div>
     </div>
-
 
     <div class="ts-nav">
-
-        <div class="selected">
-            Product
-        </div>
-
-        <div>
-            How It Works
-        </div>
-
-        <div>
-            Features
-        </div>
-
-        <div>
-            Dashboard Overview
-        </div>
-
+        <div class="ts-nav-item selected">Product</div>
+        <div class="ts-nav-item">How It Works</div>
+        <div class="ts-nav-item">Features</div>
+        <div class="ts-nav-item">Dashboard Overview</div>
     </div>
 
-
-    <a
-        class="ts-get"
-        href="#analyzer"
-    >
-        Get Started
-        <span>↗</span>
+    <a class="ts-get" href="#analyzer">
+        Get Started <span>↗</span>
     </a>
-
 </div>
-""",
-    unsafe_allow_html=True
-)
-
+""", unsafe_allow_html=True)
 
 # ============================================================
-# HERO SECTION
+# HERO + MOCKUP
 # ============================================================
 
-st.markdown(
-    """
+st.markdown("""
 <div class="hero-wrap">
-
     <div>
-
-        <div class="eyebrow">
-            ✣ &nbsp; AI DOCUMENT ANALYSIS
-        </div>
-
+        <div class="eyebrow">✣ &nbsp; AI DOCUMENT ANALYSIS</div>
 
         <h1 class="hero-title">
-
             Understand how similar
             <br>
-
             your documents
             <em>really are.</em>
-
         </h1>
 
-
         <div class="hero-copy">
-
             Compare documents using semantic similarity,
             detect meaningful matching sections, and identify
             potential plagiarism risk beyond simple keyword
             matching.
-
         </div>
 
-
-        <a
-            class="ts-btn ts-btn-black"
-            href="#analyzer"
-        >
+        <a class="ts-btn ts-btn-black" href="#analyzer">
             Analyze Documents &nbsp; →
         </a>
 
-
-        <a
-            class="ts-btn ts-btn-light"
-            href="#how-it-works"
-        >
+        <a class="ts-btn ts-btn-light" href="#how-it-works">
             See How It Works
         </a>
 
-
         <div class="hero-features">
-
             <div class="feature">
-
-                <span class="check">
-                    ✓
-                </span>
-
+                <span class="check">✓</span>
                 Vector Embeddings
-
             </div>
-
-
             <div class="feature">
-
-                <span class="check">
-                    ✓
-                </span>
-
+                <span class="check">✓</span>
                 Section Matching
-
             </div>
-
-
             <div class="feature">
-
-                <span class="check">
-                    ✓
-                </span>
-
+                <span class="check">✓</span>
                 PDF / DOCX / TXT
-
             </div>
-
         </div>
-
     </div>
 
-
-    <!-- RIGHT MOCKUP -->
-
     <div class="mock">
-
         <div class="mock-head">
-
             <div class="mock-dots">
-
                 <span class="dot r"></span>
-
                 <span class="dot y"></span>
-
                 <span class="dot g"></span>
-
             </div>
 
-
-            <div class="mock-file">
-                analysis_report_v2.json
-            </div>
-
-
-            <div class="mock-live">
-                LIVE MOCKUP
-            </div>
-
+            <div class="mock-file">analysis_report_v2.json</div>
+            <div class="mock-live">LIVE MOCKUP</div>
         </div>
-
-
-        <!-- DOCUMENT A -->
 
         <div class="mock-doc">
-
             <div class="mock-doc-left">
-
                 <div class="doc-icon"></div>
-
                 <div>
-
-                    <div class="mock-doc-title">
-                        Document_A_Research.docx
-                    </div>
-
-                    <div class="mock-meta">
-                        2,450 words • Reference Document
-                    </div>
-
+                    <div class="mock-doc-title">Document_A_Research.docx</div>
+                    <div class="mock-meta">2,450 words • Reference Document</div>
                 </div>
-
             </div>
-
-
-            <div class="mock-label">
-                Doc A
-            </div>
-
+            <div class="mock-label">Doc A</div>
         </div>
-
-
-        <!-- DOCUMENT B -->
 
         <div class="mock-doc">
-
             <div class="mock-doc-left">
-
                 <div class="doc-icon"></div>
-
                 <div>
-
-                    <div class="mock-doc-title">
-                        Student_Submission_B.pdf
-                    </div>
-
-                    <div class="mock-meta">
-                        2,180 words • Target Comparison
-                    </div>
-
+                    <div class="mock-doc-title">Student_Submission_B.pdf</div>
+                    <div class="mock-meta">2,180 words • Target Comparison</div>
                 </div>
-
             </div>
-
-
-            <div class="mock-label">
-                Doc B
-            </div>
-
+            <div class="mock-label">Doc B</div>
         </div>
-
-
-        <!-- SCORE -->
 
         <div class="mock-score">
-
             <div class="score-cell">
-
-                <div class="score-number">
-                    82%
-                </div>
-
-                <div class="score-label">
-                    SIMILARITY
-                </div>
-
+                <div class="score-number">82%</div>
+                <div class="score-label">SIMILARITY</div>
             </div>
-
-
             <div class="score-cell">
-
-                <div class="risk-badge">
-                    ♙ &nbsp;High
-                </div>
-
-                <div class="score-label">
-                    RISK LEVEL
-                </div>
-
+                <div class="risk-badge">♙ &nbsp;High</div>
+                <div class="score-label">RISK LEVEL</div>
             </div>
-
-
             <div class="score-cell">
-
-                <div class="score-number">
-                    12
-                </div>
-
-                <div class="score-label">
-                    MATCHES
-                </div>
-
+                <div class="score-number">12</div>
+                <div class="score-label">MATCHES</div>
             </div>
-
         </div>
 
-
-        <!-- MATCH -->
-
         <div class="mock-match">
-
             <div class="match-top">
-
-                <span>
-                    Section #3 Semantic Match
-                </span>
-
-                <span class="overlap">
-                    86.2% Overlap
-                </span>
-
+                <span>Section #3 Semantic Match</span>
+                <span class="overlap">86.2% Overlap</span>
             </div>
-
-
             <div class="mock-quote">
-
                 "Deep learning algorithms enable
                 automated diagnostic scans to detect
                 early stage anomalous structures..."
-
             </div>
-
         </div>
-
     </div>
-
 </div>
-""",
-    unsafe_allow_html=True
-)
-
+""", unsafe_allow_html=True)
 
 # ============================================================
-# ANALYZER SECTION
+# TEXT EXTRACTION / ANALYSIS
 # ============================================================
 
-st.markdown(
-    """
-<div
-    class="analyzer"
-    id="analyzer"
->
+def extract_text(uploaded):
+    if uploaded is None:
+        return ""
 
-    <h2>
-        Analyze your documents
-    </h2>
+    data = uploaded.getvalue()
+    name = uploaded.name.lower()
 
-    <div class="analyzer-sub">
+    try:
+        if name.endswith(".txt"):
+            return data.decode("utf-8", errors="ignore")
 
-        Upload two documents and compare
-        their semantic similarity.
+        if name.endswith(".pdf"):
+            reader = PdfReader(io.BytesIO(data))
+            return "\n".join((page.extract_text() or "") for page in reader.pages)
 
-    </div>
+        if name.endswith(".docx"):
+            doc = Document(io.BytesIO(data))
+            return "\n".join(p.text for p in doc.paragraphs)
 
-</div>
-""",
-    unsafe_allow_html=True
-)
+    except Exception as exc:
+        st.error(f"Could not read {uploaded.name}: {exc}")
 
-
-# ============================================================
-# DOCUMENT UPLOAD
-# ============================================================
-
-column_a, column_b = st.columns(
-    2,
-    gap="large"
-)
+    return ""
 
 
-# DOCUMENT A
+def clean_text(text):
+    text = re.sub(r"\s+", " ", text or "").strip()
+    return text
 
-with column_a:
 
-    st.markdown(
-        """
-        <div class="upload-card">
+def split_sections(text):
+    text = clean_text(text)
+    if not text:
+        return []
 
-            <div class="upload-title">
-                Document A
-            </div>
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    sections = []
+    chunk = []
 
-            <div class="upload-sub">
-                Reference document
-            </div>
+    for sentence in sentences:
+        chunk.append(sentence)
+        if len(" ".join(chunk).split()) >= 70:
+            sections.append(" ".join(chunk))
+            chunk = []
 
-        </div>
-        """,
-        unsafe_allow_html=True
+    if chunk:
+        sections.append(" ".join(chunk))
+
+    return sections
+
+
+def analyze_documents(text_a, text_b):
+    a = clean_text(text_a)
+    b = clean_text(text_b)
+
+    if not a or not b:
+        return None
+
+    vectorizer = TfidfVectorizer(
+        stop_words="english",
+        ngram_range=(1, 2),
+        max_features=15000,
     )
 
+    matrix = vectorizer.fit_transform([a, b])
+    overall = float(cosine_similarity(matrix[0:1], matrix[1:2])[0][0] * 100)
+
+    sections_a = split_sections(a)
+    sections_b = split_sections(b)
+
+    matches = []
+
+    if sections_a and sections_b:
+        section_matrix = vectorizer.transform(sections_a + sections_b)
+        a_matrix = section_matrix[:len(sections_a)]
+        b_matrix = section_matrix[len(sections_a):]
+        scores = cosine_similarity(a_matrix, b_matrix)
+
+        for i in range(len(sections_a)):
+            j = int(np.argmax(scores[i]))
+            score = float(scores[i][j] * 100)
+
+            if score >= 60:
+                matches.append({
+                    "section": i + 1,
+                    "score": score,
+                    "text": sections_a[i],
+                    "comparison": sections_b[j],
+                })
+
+    matches.sort(key=lambda x: x["score"], reverse=True)
+
+    if overall >= 75:
+        risk = "High"
+    elif overall >= 45:
+        risk = "Medium"
+    else:
+        risk = "Low"
+
+    return {
+        "similarity": overall,
+        "risk": risk,
+        "matches": matches,
+    }
+
+# ============================================================
+# ANALYZER
+# ============================================================
+
+st.markdown('<div id="analyzer" class="analyzer-section"></div>', unsafe_allow_html=True)
+
+st.markdown("""
+<h2 class="analyzer-title">Analyze your documents</h2>
+
+<div class="analyzer-sub">
+    Upload two documents and compare
+    their semantic similarity.
+</div>
+""", unsafe_allow_html=True)
+
+col_a, col_b = st.columns(2, gap="large")
+
+with col_a:
+    st.markdown("""
+    <div class="upload-card">
+        <div class="upload-title">Document A</div>
+        <div class="upload-sub">Reference document</div>
+    """, unsafe_allow_html=True)
 
     file_a = st.file_uploader(
-
         "Upload Document A",
-
-        type=[
-            "pdf",
-            "docx",
-            "txt"
-        ],
-
-        key="document_a"
+        type=["pdf", "docx", "txt"],
+        key="document_a",
+        label_visibility="visible",
     )
-
-
-    text_a = st.text_area(
-
-        "Paste Document A",
-
-        height=150,
-
-        placeholder=
-        "Paste your reference text here..."
-
-    )
-
-
-# DOCUMENT B
-
-with column_b:
 
     st.markdown(
-        """
-        <div class="upload-card">
-
-            <div class="upload-title">
-                Document B
-            </div>
-
-            <div class="upload-sub">
-                Target comparison
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True
+        '<div class="upload-help">200MB per file • PDF, DOCX, TXT</div>',
+        unsafe_allow_html=True,
     )
 
+    st.markdown('<div class="paste-label">Paste Document A</div>', unsafe_allow_html=True)
+
+    paste_a = st.text_area(
+        "Paste Document A",
+        height=145,
+        key="paste_a",
+        label_visibility="collapsed",
+        placeholder="Paste your reference document text here...",
+    )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_b:
+    st.markdown("""
+    <div class="upload-card">
+        <div class="upload-title">Document B</div>
+        <div class="upload-sub">Target comparison</div>
+    """, unsafe_allow_html=True)
 
     file_b = st.file_uploader(
-
         "Upload Document B",
-
-        type=[
-            "pdf",
-            "docx",
-            "txt"
-        ],
-
-        key="document_b"
+        type=["pdf", "docx", "txt"],
+        key="document_b",
+        label_visibility="visible",
     )
 
+    st.markdown(
+        '<div class="upload-help">200MB per file • PDF, DOCX, TXT</div>',
+        unsafe_allow_html=True,
+    )
 
-    text_b = st.text_area(
+    st.markdown('<div class="paste-label">Paste Document B</div>', unsafe_allow_html=True)
 
+    paste_b = st.text_area(
         "Paste Document B",
-
-        height=150,
-
-        placeholder=
-        "Paste your target text here..."
-
+        height=145,
+        key="paste_b",
+        label_visibility="collapsed",
+        placeholder="Paste your target document text here...",
     )
 
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# ============================================================
-# ANALYZE BUTTON
-# ============================================================
+st.markdown('<div class="analyze-row">', unsafe_allow_html=True)
+clicked = st.button("Analyze Documents", use_container_width=False)
+st.markdown("</div>", unsafe_allow_html=True)
 
-if st.button(
+if clicked:
+    text_a = extract_text(file_a) if file_a else paste_a
+    text_b = extract_text(file_b) if file_b else paste_b
 
-    "Run Semantic Analysis  →",
-
-    type="primary",
-
-    use_container_width=True
-
-):
-
-    document_a = clean_text(
-
-        read_file(file_a)
-        if file_a
-        else text_a
-
-    )
-
-
-    document_b = clean_text(
-
-        read_file(file_b)
-        if file_b
-        else text_b
-
-    )
-
-
-    if not document_a:
-
-        st.error(
-            "Please provide Document A."
-        )
-
-
-    elif not document_b:
-
-        st.error(
-            "Please provide Document B."
-        )
-
-
+    if not clean_text(text_a):
+        st.warning("Please upload or paste Document A.")
+    elif not clean_text(text_b):
+        st.warning("Please upload or paste Document B.")
     else:
+        with st.spinner("Analyzing documents..."):
+            result = analyze_documents(text_a, text_b)
 
-        with st.spinner(
-            "Analyzing semantic similarity..."
-        ):
+        st.markdown('<div class="results-wrap">', unsafe_allow_html=True)
+        st.markdown('<div class="results-title">Analysis Results</div>', unsafe_allow_html=True)
 
-            result = analyze_documents(
+        r1, r2, r3 = st.columns(3)
 
-                document_a,
+        with r1:
+            st.markdown(f"""
+            <div class="result-card">
+                <div class="result-number">{result["similarity"]:.1f}%</div>
+                <div class="result-label">SIMILARITY</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-                document_b
+        with r2:
+            st.markdown(f"""
+            <div class="result-card">
+                <div class="result-number">{result["risk"]}</div>
+                <div class="result-label">RISK LEVEL</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            )
+        with r3:
+            st.markdown(f"""
+            <div class="result-card">
+                <div class="result-number">{len(result["matches"])}</div>
+                <div class="result-label">MATCHES</div>
+            </div>
+            """, unsafe_allow_html=True)
 
+        if result["matches"]:
+            st.markdown("#### Matching Sections")
 
-        if result is None:
-
-            st.error(
-                "Not enough readable text was found."
-            )
-
+            for idx, match in enumerate(result["matches"][:12], start=1):
+                st.markdown(f"""
+                <div class="match-item">
+                    <div class="match-name">
+                        Section #{match["section"]} Semantic Match
+                    </div>
+                    <div class="match-score">
+                        {match["score"]:.1f}% Overlap
+                    </div>
+                    <div class="match-text">
+                        {html.escape(match["text"][:700])}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
+            st.info("No sections crossed the semantic-match threshold.")
 
-            st.session_state[
-                "analysis_result"
-            ] = result
-
-
-# ============================================================
-# RESULTS
-# ============================================================
-
-if "analysis_result" in st.session_state:
-
-    result = st.session_state[
-        "analysis_result"
-    ]
-
-
-    overall = result["overall"]
-
-    risk = result["risk"]
-
-    matches = result["matches"]
-
-    top_matches = result[
-        "top_matches"
-    ]
-
-    similarity_matrix = result[
-        "matrix"
-    ]
-
-
-    st.markdown(
-        """
-        <div class="result">
-
-            <h2>
-                Dashboard Overview
-            </h2>
-
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-    # Metrics
-
-    metric1, metric2, metric3 = st.columns(3)
-
-
-    with metric1:
-
-        st.markdown(
-            f"""
-            <div class="result-card">
-
-                <div class="muted">
-                    SIMILARITY
-                </div>
-
-                <div class="metric">
-                    {overall:.1f}%
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-
-    with metric2:
-
-        st.markdown(
-            f"""
-            <div class="result-card">
-
-                <div class="muted">
-                    RISK LEVEL
-                </div>
-
-                <div class="metric {risk.lower()}">
-                    {risk}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-
-    with metric3:
-
-        st.markdown(
-            f"""
-            <div class="result-card">
-
-                <div class="muted">
-                    MATCHING SECTIONS
-                </div>
-
-                <div class="metric">
-                    {matches}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-
-    # ========================================================
-    # MATCHES
-    # ========================================================
-
-    st.markdown(
-        "### Semantic Matches"
-    )
-
-
-    for number, match in enumerate(
-        top_matches,
-        start=1
-    ):
-
-        score = match["score"]
-
-        text_from_a = html.escape(
-            match["a_text"]
-        )
-
-        text_from_b = html.escape(
-            match["b_text"]
-        )
-
-
-        st.markdown(
-            f"""
-            <div class="match-card">
-
-                <div
-                    style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                    "
-                >
-
-                    <strong>
-                        Section #{number}
-                        Semantic Match
-                    </strong>
-
-                    <span class="overlap">
-                        {score:.1f}% Overlap
-                    </span>
-
-                </div>
-
-
-                <div
-                    class="muted"
-                    style="margin-top:15px;"
-                >
-                    DOCUMENT A
-                </div>
-
-
-                <div class="quote">
-
-                    {text_from_a[:1000]}
-
-                </div>
-
-
-                <div
-                    class="muted"
-                    style="margin-top:14px;"
-                >
-                    DOCUMENT B
-                </div>
-
-
-                <div class="quote">
-
-                    {text_from_b[:1000]}
-
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-
-    # ========================================================
-    # SIMILARITY MATRIX
-    # ========================================================
-
-    st.markdown(
-        "### Similarity Matrix"
-    )
-
-
-    st.dataframe(
-
-        np.round(
-            similarity_matrix * 100,
-            1
-        ),
-
-        use_container_width=True,
-
-        hide_index=True
-
-    )
-
-
-    st.caption(
-
-        "This version uses TF-IDF + cosine similarity "
-        "as a lightweight local baseline. For stronger "
-        "semantic matching, the engine can be upgraded "
-        "to sentence embeddings."
-
-    )
-
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================
 # HOW IT WORKS
 # ============================================================
 
-st.markdown(
-    """
-<section class="how-section" id="how-it-works">
+st.markdown('<div id="how-it-works" class="how-section"></div>', unsafe_allow_html=True)
 
-    <h2 class="how-title">
-        How It Works
-    </h2>
+st.markdown("""
+<h2 class="how-title">
+    How It Works
+</h2>
 
-    <div class="how-sub">
-        TextShield analyzes your documents in three simple stages.
+<div class="how-sub">
+    TextShield analyzes your documents in three simple stages.
+</div>
+
+<div class="how-grid">
+
+    <div class="how-card">
+        <div class="how-number">01</div>
+
+        <h3>
+            Upload Documents
+        </h3>
+
+        <p>
+            Upload your reference and target documents
+            in PDF, DOCX, or TXT format, or paste the
+            text directly.
+        </p>
     </div>
 
-    <div class="how-grid">
+    <div class="how-card">
+        <div class="how-number">02</div>
 
-        <div class="how-card">
+        <h3>
+            Analyze Similarity
+        </h3>
 
-            <div class="how-number">
-                01
-            </div>
-
-            <h3>
-                Upload Documents
-            </h3>
-
-            <p>
-                Upload your reference and target documents
-                in PDF, DOCX, or TXT format, or paste the
-                text directly.
-            </p>
-
-        </div>
-
-
-        <div class="how-card">
-
-            <div class="how-number">
-                02
-            </div>
-
-            <h3>
-                Analyze Similarity
-            </h3>
-
-            <p>
-                TextShield processes the documents,
-                divides them into sections, and calculates
-                similarity between their content.
-            </p>
-
-        </div>
-
-
-        <div class="how-card">
-
-            <div class="how-number">
-                03
-            </div>
-
-            <h3>
-                Review Matches
-            </h3>
-
-            <p>
-                Review the overall similarity score,
-                risk level, matching sections, and
-                similarity matrix.
-            </p>
-
-        </div>
-
+        <p>
+            TextShield processes the documents,
+            divides them into sections, and calculates
+            similarity between their content.
+        </p>
     </div>
 
-</section>
-""",
-    unsafe_allow_html=True
-)
+    <div class="how-card">
+        <div class="how-number">03</div>
 
+        <h3>
+            Review Matches
+        </h3>
+
+        <p>
+            Review the overall similarity score,
+            risk level, matching sections, and
+            similarity matrix.
+        </p>
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
 
 # ============================================================
 # FOOTER
 # ============================================================
 
-st.markdown(
-    """
-    <div class="footer">
-
-        TextShield • AI Semantic Document Analysis
-
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div class="ts-footer">
+    TextShield • AI Semantic Document Analysis
+</div>
+""", unsafe_allow_html=True)
