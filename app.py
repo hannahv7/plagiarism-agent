@@ -163,7 +163,6 @@ footer {
 
 .ts-nav .selected {
     color: #171717;
-
     position: relative;
 }
 
@@ -415,8 +414,6 @@ footer {
 }
 
 
-/* Mock header */
-
 .mock-head {
 
     height: 45px;
@@ -444,7 +441,6 @@ footer {
 .dot {
 
     width: 14px;
-
     height: 14px;
 
     border-radius: 50%;
@@ -787,6 +783,18 @@ footer {
 }
 
 
+.upload-limit {
+
+    color: #8b857e;
+
+    font-size: 12px;
+
+    margin-top: 7px;
+
+    margin-bottom: 14px;
+}
+
+
 div[data-testid="stFileUploader"] {
 
     background: #f4f1ec !important;
@@ -797,7 +805,11 @@ div[data-testid="stFileUploader"] {
 }
 
 
-/* Text area */
+div[data-testid="stFileUploader"] section {
+
+    padding: 10px !important;
+}
+
 
 textarea {
 
@@ -805,7 +817,7 @@ textarea {
 }
 
 
-/* Buttons */
+/* Analyze button */
 
 div.stButton > button {
 
@@ -818,12 +830,116 @@ div.stButton > button {
 
 
 /* ============================================================
+   HOW IT WORKS
+   ============================================================ */
+
+#how-it-works {
+
+    scroll-margin-top: 30px;
+
+    margin-top: 100px;
+
+    padding-top: 60px;
+
+    border-top: 1px solid #ddd8d1;
+}
+
+
+.how-title {
+
+    font-size: 42px;
+
+    letter-spacing: -2px;
+
+    margin-bottom: 10px;
+}
+
+
+.how-sub {
+
+    color: #716c66;
+
+    margin-bottom: 35px;
+}
+
+
+.how-card {
+
+    background: #faf9f7;
+
+    border: 1px solid #ded9d2;
+
+    border-radius: 18px;
+
+    padding: 25px;
+
+    height: 100%;
+}
+
+
+.how-number {
+
+    width: 36px;
+
+    height: 36px;
+
+    border-radius: 50%;
+
+    background: #171717;
+
+    color: white;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    font-family: "DM Mono", monospace;
+
+    margin-bottom: 18px;
+}
+
+
+.how-card h3 {
+
+    font-size: 18px;
+
+    margin-bottom: 8px;
+}
+
+
+.how-card p {
+
+    color: #716c66;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+
+/* ============================================================
    RESULTS
    ============================================================ */
 
 .result {
 
-    margin-top: 40px;
+    margin-top: 60px;
+
+    padding-top: 50px;
+
+    border-top: 1px solid #ddd8d1;
+}
+
+
+.result h2 {
+
+    font-size: 42px;
+
+    letter-spacing: -2px;
+
+    margin-bottom: 25px;
 }
 
 
@@ -908,6 +1024,10 @@ div.stButton > button {
 }
 
 
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
 .footer {
 
     text-align: center;
@@ -916,7 +1036,7 @@ div.stButton > button {
 
     font-size: 12px;
 
-    padding-top: 50px;
+    padding-top: 60px;
 }
 
 
@@ -991,11 +1111,18 @@ div.stButton > button {
 
         display: none;
     }
+
+    .ts-btn {
+
+        min-width: 100%;
+
+        margin-bottom: 10px;
+    }
 }
 
 </style>
 """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
 
@@ -1011,6 +1138,7 @@ def read_file(uploaded_file):
     data = uploaded_file.getvalue()
 
     filename = uploaded_file.name.lower()
+
 
     # TXT
     if filename.endswith(".txt"):
@@ -1089,14 +1217,16 @@ def split_sections(text):
     if not text:
         return []
 
+
     sentences = re.split(
         r"(?<=[.!?])\s+",
         text
     )
 
+
     sections = []
 
-    # Three sentences per section
+
     for i in range(
         0,
         len(sentences),
@@ -1107,17 +1237,19 @@ def split_sections(text):
             sentences[i:i + 3]
         ).strip()
 
+
         if section:
 
             sections.append(
                 section
             )
 
+
     return sections
 
 
 # ============================================================
-# SEMANTIC ANALYSIS
+# DOCUMENT ANALYSIS
 # ============================================================
 
 def analyze_documents(
@@ -1133,6 +1265,7 @@ def analyze_documents(
         document_b
     )
 
+
     if not sections_a or not sections_b:
 
         return None
@@ -1145,6 +1278,7 @@ def analyze_documents(
         ngram_range=(1, 2),
 
         max_features=15000
+
     )
 
 
@@ -1175,6 +1309,7 @@ def analyze_documents(
 
 
     # Overall similarity
+
     full_a = vectorizer.transform(
         [clean_text(document_a)]
     )
@@ -1190,10 +1325,12 @@ def analyze_documents(
             full_a,
             full_b
         )[0][0] * 100
+
     )
 
 
-    # Matching sections
+    # Number of matching sections
+
     match_count = int(
         (
             similarity_matrix >= 0.60
@@ -1201,7 +1338,8 @@ def analyze_documents(
     )
 
 
-    # Risk level
+    # Risk
+
     if overall_similarity >= 75:
 
         risk = "High"
@@ -1215,7 +1353,8 @@ def analyze_documents(
         risk = "Low"
 
 
-    # Find strongest matches
+    # Strongest matches
+
     matches = []
 
     flattened = np.argsort(
@@ -1232,6 +1371,7 @@ def analyze_documents(
             index,
             similarity_matrix.shape
         )
+
 
         score = (
             similarity_matrix[i][j]
@@ -1354,7 +1494,7 @@ st.markdown(
 
 
 # ============================================================
-# HERO SECTION
+# HERO
 # ============================================================
 
 st.markdown(
@@ -1614,7 +1754,7 @@ st.markdown(
 
 
 # ============================================================
-# ANALYZER SECTION
+# ANALYZER
 # ============================================================
 
 st.markdown(
@@ -1642,7 +1782,7 @@ st.markdown(
 
 
 # ============================================================
-# DOCUMENT UPLOAD
+# DOCUMENT UPLOADERS
 # ============================================================
 
 column_a, column_b = st.columns(
@@ -1651,7 +1791,9 @@ column_a, column_b = st.columns(
 )
 
 
+# ------------------------------------------------------------
 # DOCUMENT A
+# ------------------------------------------------------------
 
 with column_a:
 
@@ -1684,6 +1826,17 @@ with column_a:
         ],
 
         key="document_a"
+
+    )
+
+
+    st.markdown(
+        """
+        <div class="upload-limit">
+            200MB per file • PDF, DOCX, TXT
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 
@@ -1699,7 +1852,9 @@ with column_a:
     )
 
 
+# ------------------------------------------------------------
 # DOCUMENT B
+# ------------------------------------------------------------
 
 with column_b:
 
@@ -1732,6 +1887,17 @@ with column_b:
         ],
 
         key="document_b"
+
+    )
+
+
+    st.markdown(
+        """
+        <div class="upload-limit">
+            200MB per file • PDF, DOCX, TXT
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 
@@ -1861,7 +2027,9 @@ if "analysis_result" in st.session_state:
     )
 
 
-    # Metrics
+    # --------------------------------------------------------
+    # METRICS
+    # --------------------------------------------------------
 
     metric1, metric2, metric3 = st.columns(3)
 
@@ -1926,9 +2094,9 @@ if "analysis_result" in st.session_state:
         )
 
 
-    # ========================================================
-    # MATCHES
-    # ========================================================
+    # --------------------------------------------------------
+    # SEMANTIC MATCHES
+    # --------------------------------------------------------
 
     st.markdown(
         "### Semantic Matches"
@@ -1942,9 +2110,11 @@ if "analysis_result" in st.session_state:
 
         score = match["score"]
 
+
         text_from_a = html.escape(
             match["a_text"]
         )
+
 
         text_from_b = html.escape(
             match["b_text"]
@@ -1967,6 +2137,7 @@ if "analysis_result" in st.session_state:
                         Section #{number}
                         Semantic Match
                     </strong>
+
 
                     <span class="overlap">
                         {score:.1f}% Overlap
@@ -2010,9 +2181,9 @@ if "analysis_result" in st.session_state:
         )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # SIMILARITY MATRIX
-    # ========================================================
+    # --------------------------------------------------------
 
     st.markdown(
         "### Similarity Matrix"
@@ -2033,13 +2204,106 @@ if "analysis_result" in st.session_state:
     )
 
 
-    st.caption(
+# ============================================================
+# HOW IT WORKS
+# ============================================================
 
-        "This version uses TF-IDF + cosine similarity "
-        "as a lightweight local baseline. For stronger "
-        "semantic matching, the engine can be upgraded "
-        "to sentence embeddings."
+st.markdown(
+    """
+<div id="how-it-works">
 
+    <h2 class="how-title">
+        How It Works
+    </h2>
+
+    <div class="how-sub">
+        TextShield analyzes your documents in three simple stages.
+    </div>
+
+</div>
+""",
+    unsafe_allow_html=True
+)
+
+
+how1, how2, how3 = st.columns(3)
+
+
+with how1:
+
+    st.markdown(
+        """
+        <div class="how-card">
+
+            <div class="how-number">
+                01
+            </div>
+
+            <h3>
+                Upload Documents
+            </h3>
+
+            <p>
+                Upload your reference and target documents
+                in PDF, DOCX, or TXT format, or paste the
+                text directly.
+            </p>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+with how2:
+
+    st.markdown(
+        """
+        <div class="how-card">
+
+            <div class="how-number">
+                02
+            </div>
+
+            <h3>
+                Analyze Similarity
+            </h3>
+
+            <p>
+                TextShield processes the documents,
+                divides them into sections, and calculates
+                similarity between their content.
+            </p>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+with how3:
+
+    st.markdown(
+        """
+        <div class="how-card">
+
+            <div class="how-number">
+                03
+            </div>
+
+            <h3>
+                Review Matches
+            </h3>
+
+            <p>
+                Review the overall similarity score,
+                risk level, matching sections, and
+                similarity matrix.
+            </p>
+
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 
